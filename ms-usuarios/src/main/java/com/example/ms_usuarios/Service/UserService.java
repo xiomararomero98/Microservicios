@@ -10,6 +10,7 @@ import com.example.ms_usuarios.Repository.UserRepository;
 import com.example.ms_usuarios.Repository.RolRepository;
 
 import jakarta.transaction.Transactional;
+import org.mindrot.jbcrypt.BCrypt;
 
 @Service
 @Transactional
@@ -74,6 +75,9 @@ public class UserService {
         if (repository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("El correo ya está registrado");
         }
+        // encriptar contraseña
+        String hashed = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
+        user.setPassword(hashed);
 
         return repository.save(user);
     }
@@ -93,6 +97,12 @@ public class UserService {
         dbUser.setPassword(user.getPassword());
         dbUser.setTelefono(user.getTelefono());
         dbUser.setDireccion(user.getDireccion());
+
+          // Encriptar si viene una nueva contraseña
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            String hashed = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
+            dbUser.setPassword(hashed);
+        }
 
         // si viene rol lo actualiza
         if (user.getRol() != null) {
@@ -120,7 +130,8 @@ public class UserService {
         Usuario user = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Correo no registrado"));
 
-        if (!user.getPassword().equals(password)) {
+         // Comparar contraseña con BCrypt
+        if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
 
