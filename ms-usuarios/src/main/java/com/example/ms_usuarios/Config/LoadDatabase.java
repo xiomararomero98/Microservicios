@@ -53,7 +53,7 @@ public class LoadDatabase {
 
                     Usuario u1 = new Usuario(
                             null,
-                            "Benjamin",
+                            "Xiomara",
                             "Admin",
                             "admin@discoclub.cl",
                             passAdmin,
