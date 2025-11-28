@@ -64,11 +64,15 @@ public class UserController {
     // LOGIN
     // ================================
     @PostMapping("/login")
-    public ResponseEntity<Usuario> login(@RequestParam String email,
-                                         @RequestParam String password) {
-        return ResponseEntity.ok(service.login(email, password));
+        public ResponseEntity<?> login(@RequestParam String email,
+                               @RequestParam String password) {
+    try {
+        Usuario user = service.login(email, password);
+        return ResponseEntity.ok(user);
+    } catch (RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
     }
-
+}
     // ================================
     // CAMBIAR ROL DE UN USUARIO
     // ================================
