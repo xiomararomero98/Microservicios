@@ -1,10 +1,15 @@
 package com.example.ms_productos.Model;
 
+
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "productos")
 public class Producto {
 
@@ -13,13 +18,9 @@ public class Producto {
     private Long id;
 
     private String nombre;
-
     private String descripcion;
-
     private Double precio;
-
     private Integer stock;
 
-    private String imagen; // URL o nombre del archivo
-    
+    private String imagen; // "/img/disfraces.png"
 }
