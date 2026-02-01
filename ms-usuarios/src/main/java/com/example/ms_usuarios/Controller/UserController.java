@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/usuarios")
@@ -81,4 +82,17 @@ public class UserController {
                                               @PathVariable Long idRol) {
         return ResponseEntity.ok(service.cambiarRol(idUsuario, idRol));
     }
+
+
+@PutMapping("/{id}/password")
+public ResponseEntity<Void> cambiarPassword(
+        @PathVariable Long id,
+        @RequestBody Map<String, String> body
+) {
+    String passwordActual = body.get("passwordActual");
+    String passwordNueva = body.get("passwordNueva");
+
+    service.cambiarPassword(id, passwordActual, passwordNueva);
+    return ResponseEntity.noContent().build();
+}
 }

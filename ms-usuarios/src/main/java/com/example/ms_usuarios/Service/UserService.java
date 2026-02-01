@@ -2,15 +2,15 @@ package com.example.ms_usuarios.Service;
 
 import java.util.List;
 
+import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
-import com.example.ms_usuarios.Model.Usuario;
 import com.example.ms_usuarios.Model.Rol;
-import com.example.ms_usuarios.Repository.UserRepository;
+import com.example.ms_usuarios.Model.Usuario;
 import com.example.ms_usuarios.Repository.RolRepository;
+import com.example.ms_usuarios.Repository.UserRepository;
 
 import jakarta.transaction.Transactional;
-import org.mindrot.jbcrypt.BCrypt;
 
 @Service
 @Transactional
@@ -40,9 +40,9 @@ public class UserService {
     }
 
     // ==========================================================
-    // VALIDACIÓN GENERAL PARA CREAR Y ACTUALIZAR
+    // VALIDACIONES
     // ==========================================================
-    private void validarUsuario(Usuario user) {
+    private void validarDatosBase(Usuario user) {
 
         if (user.getNombre() == null || user.getNombre().isBlank()) {
             throw new RuntimeException("El nombre es obligatorio");
@@ -60,9 +60,52 @@ public class UserService {
             throw new RuntimeException("El email no es válido");
         }
 
-        if (user.getPassword() == null || user.getPassword().length() < 6) {
+        if (user.getTelefono() == null || user.getTelefono().isBlank()) {
+            throw new RuntimeException("El teléfono es obligatorio");
+        }
+
+        if (user.getDireccion() == null || user.getDireccion().isBlank()) {
+            throw new RuntimeException("La dirección es obligatoria");
+        }
+    }
+
+    // Create: password obligatoria
+    private void validarCreate(Usuario user) {
+        validarDatosBase(user);
+
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw new RuntimeException("La contraseña es obligatoria");
+        }
+        if (user.getPassword().length() < 6) {
             throw new RuntimeException("La contraseña debe tener al menos 6 caracteres");
         }
+    }
+
+    // Update: password opcional (solo valida si viene)
+    private void validarUpdate(Usuario user) {
+        validarDatosBase(user);
+
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            if (user.getPassword().length() < 6) {
+                throw new RuntimeException("La contraseña debe tener al menos 6 caracteres");
+            }
+        }
+    }
+
+    // ==========================================================
+    // ROL: traer el rol REAL desde BD (evita rol.nombre = null)
+    // ==========================================================
+    private Rol resolverRolDesdeRequest(Usuario user) {
+        if (user.getRol() == null || user.getRol().getId() == null) return null;
+
+        Long idRol = user.getRol().getId();
+        return rolRepository.findById(idRol)
+                .orElseThrow(() -> new RuntimeException("Rol no encontrado con id: " + idRol));
+    }
+
+    private Rol rolDefaultCliente() {
+        return rolRepository.findByNombreIgnoreCase("CLIENTE")
+                .orElseThrow(() -> new RuntimeException("Rol CLIENTE no existe en BD"));
     }
 
     // ==========================================================
@@ -70,12 +113,21 @@ public class UserService {
     // ==========================================================
     public Usuario create(Usuario user) {
 
-        validarUsuario(user); // Validaciones completas
+        validarCreate(user);
 
         if (repository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("El correo ya está registrado");
         }
-        // encriptar contraseña
+
+        // ✅ Rol: si vino {rol:{id:2}} lo traemos real desde BD
+        Rol rolReal = resolverRolDesdeRequest(user);
+        if (rolReal != null) {
+            user.setRol(rolReal);
+        } else {
+            user.setRol(rolDefaultCliente());
+        }
+
+        // ✅ Encriptar contraseña
         String hashed = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
         user.setPassword(hashed);
 
@@ -87,26 +139,32 @@ public class UserService {
     // ==========================================================
     public Usuario update(Long id, Usuario user) {
 
-        Usuario dbUser = getById(id); // si no existe lanza error
+        Usuario dbUser = getById(id);
 
-        validarUsuario(user); // Validar antes de actualizar
+        validarUpdate(user);
+
+        // ✅ Email duplicado si lo cambió
+        if (!dbUser.getEmail().equalsIgnoreCase(user.getEmail())
+                && repository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("El correo ya está registrado");
+        }
 
         dbUser.setNombre(user.getNombre());
         dbUser.setApellido(user.getApellido());
         dbUser.setEmail(user.getEmail());
-        dbUser.setPassword(user.getPassword());
         dbUser.setTelefono(user.getTelefono());
         dbUser.setDireccion(user.getDireccion());
 
-          // Encriptar si viene una nueva contraseña
+        // ✅ Password opcional: si viene, se encripta; si no, se mantiene
         if (user.getPassword() != null && !user.getPassword().isBlank()) {
             String hashed = BCrypt.hashpw(user.getPassword(), BCrypt.gensalt());
             dbUser.setPassword(hashed);
         }
 
-        // si viene rol lo actualiza
-        if (user.getRol() != null) {
-            dbUser.setRol(user.getRol());
+        // ✅ Rol opcional: si viene, buscar rol real por ID
+        Rol rolReal = resolverRolDesdeRequest(user);
+        if (rolReal != null) {
+            dbUser.setRol(rolReal);
         }
 
         return repository.save(dbUser);
@@ -130,7 +188,6 @@ public class UserService {
         Usuario user = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Correo no registrado"));
 
-         // Comparar contraseña con BCrypt
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new RuntimeException("Contraseña incorrecta");
         }
@@ -154,4 +211,26 @@ public class UserService {
         return repository.save(usuario);
     }
 
+    
+    // ==========================================================
+    // CAMBIAR contraseña
+    // ==========================================================
+
+public void cambiarPassword(Long id, String passwordActual, String passwordNueva) {
+
+    Usuario user = getById(id);
+
+    if (!BCrypt.checkpw(passwordActual, user.getPassword())) {
+        throw new RuntimeException("Contraseña actual incorrecta");
+    }
+
+    if (passwordNueva == null || passwordNueva.length() < 6) {
+        throw new RuntimeException("La nueva contraseña debe tener al menos 6 caracteres");
+    }
+
+    String hashed = BCrypt.hashpw(passwordNueva, BCrypt.gensalt());
+    user.setPassword(hashed);
+
+    repository.save(user);
+}
 }

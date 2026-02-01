@@ -42,8 +42,8 @@ public class LoadDatabase {
             if (userRepository.count() == 0) {
                 System.out.println("==> Cargando Usuarios...");
 
-                Rol admin = rolRepository.findByNombre("ADMIN").orElse(null);
-                Rol cliente = rolRepository.findByNombre("CLIENTE").orElse(null);
+                Rol admin = rolRepository.findByNombreIgnoreCase("ADMIN").orElse(null);
+                Rol cliente = rolRepository.findByNombreIgnoreCase("CLIENTE").orElse(null);
 
                 if (admin != null && cliente != null) {
 
