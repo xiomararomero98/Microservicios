@@ -47,4 +47,20 @@ public class ProductoService {
         }
         repository.deleteById(id);
     }
+
+    public Producto descontarStock(Long id, int cantidad) {
+    Producto producto = getById(id); // ya lanza error si no existe
+
+    if (cantidad <= 0) {
+        throw new RuntimeException("La cantidad debe ser mayor a 0");
+    }
+
+    if (producto.getStock() < cantidad) {
+        throw new RuntimeException("Stock insuficiente. Stock actual: " + producto.getStock());
+    }
+
+    producto.setStock(producto.getStock() - cantidad);
+    return repository.save(producto);
+}
+    
 }
