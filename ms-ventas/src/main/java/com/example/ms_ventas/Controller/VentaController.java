@@ -84,4 +84,9 @@ public class VentaController {
     public ResponseEntity<List<Venta>> list() {
         return ResponseEntity.ok(ventaRepository.findAll());
     }
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<Venta>> getByUsuario(@PathVariable Long usuarioId) {
+    return ResponseEntity.ok(ventaRepository.findByUsuarioId(usuarioId));
+}
+
 }
